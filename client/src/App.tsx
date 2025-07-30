@@ -3,25 +3,39 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useEffect, useState } from "react";
-import { auth, type AuthUser } from "./lib/auth";
-import LoginPage from "@/pages/login";
+import { useAuth } from "@/hooks/useAuth";
 import ContactsPage from "@/pages/contacts";
 import AddNotePage from "@/pages/add-note";
 import ContactDetailPage from "@/pages/contact-detail";
 import SettingsPage from "@/pages/settings";
 
+// Landing page for logged out users
+function LandingPage() {
+  return (
+    <div className="h-screen flex items-center justify-center bg-slate-50">
+      <div className="max-w-md mx-auto text-center p-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">
+          Welcome to Networker
+        </h1>
+        <p className="text-gray-600 mb-8">
+          Smart contact management for founders and professionals. 
+          Track your network, log interactions, and visualize connections.
+        </p>
+        <a 
+          href="/api/login"
+          className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Sign In with Replit
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function Router() {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { isAuthenticated, isLoading } = useAuth();
 
-  useEffect(() => {
-    const currentUser = auth.initializeAuth();
-    setUser(currentUser);
-    setLoading(false);
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -29,8 +43,8 @@ function Router() {
     );
   }
 
-  if (!user) {
-    return <LoginPage onLogin={setUser} />;
+  if (!isAuthenticated) {
+    return <LandingPage />;
   }
 
   return (

@@ -1,49 +1,29 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertContactSchema, insertInteractionSchema, insertEdgeSchema, insertUserSchema } from "@shared/schema";
+import { insertContactSchema, insertInteractionSchema, insertEdgeSchema } from "@shared/schema";
 import { parseNoteText } from "../client/src/lib/text-parser";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
+  // Auth middleware
+  await setupAuth(app);
+
   // Auth routes
-  app.post("/api/auth/login", async (req, res) => {
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const { email, name, id } = req.body;
-      
-      let user = await storage.getUserByEmail(email);
-      if (!user) {
-        const userData = insertUserSchema.parse({ id, email, name });
-        user = await storage.createUser(userData);
-      }
-      
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
-      res.status(400).json({ message: "Invalid user data" });
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
-  });
-
-  app.get("/api/auth/me", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    
-    const user = await storage.getUser(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    
-    res.json(user);
   });
 
   // Contacts routes
-  app.get("/api/contacts", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
+  app.get("/api/contacts", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
     
@@ -51,12 +31,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(contacts);
   });
 
-  app.get("/api/contacts/:id", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
+  app.get("/api/contacts/:id", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
     const contact = await storage.getContact(req.params.id, userId);
     if (!contact) {
       return res.status(404).json({ message: "Contact not found" });
@@ -65,11 +41,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(contact);
   });
 
-  app.post("/api/contacts", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.post("/api/contacts", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
 
     try {
       const contactData = insertContactSchema.parse({ ...req.body, userId });
@@ -80,11 +53,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/contacts/:id", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.patch("/api/contacts/:id", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
 
     try {
       const updateData = insertContactSchema.partial().parse(req.body);
@@ -101,11 +71,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Smart note parsing and contact creation
-  app.post("/api/notes", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.post("/api/notes", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
 
     try {
       const { body } = req.body;
@@ -172,11 +139,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Confirm contact creation after duplicate check
-  app.post("/api/notes/confirm", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.post("/api/notes/confirm", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
 
     try {
       const { action, contactId, parsed, body } = req.body;
@@ -220,11 +184,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Interactions routes
-  app.get("/api/contacts/:id/interactions", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.get("/api/contacts/:id/interactions", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
 
     // Verify contact belongs to user
     const contact = await storage.getContact(req.params.id, userId);
@@ -236,11 +197,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(interactions);
   });
 
-  app.post("/api/contacts/:id/interactions", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.post("/api/contacts/:id/interactions", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
 
     // Verify contact belongs to user
     const contact = await storage.getContact(req.params.id, userId);
@@ -262,11 +220,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Edges/relationships routes
-  app.get("/api/contacts/:id/edges", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.get("/api/contacts/:id/edges", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
 
     // Verify contact belongs to user
     const contact = await storage.getContact(req.params.id, userId);
@@ -279,11 +234,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // CSV Export
-  app.get("/api/export/csv", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.get("/api/export/csv", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
 
     try {
       const contacts = await storage.getContacts(userId, 1000, 0);
@@ -328,11 +280,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stats
-  app.get("/api/stats", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.get("/api/stats", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
 
     const contactCount = await storage.getContactCount(userId);
     const interactionCount = await storage.getInteractionCount(userId);

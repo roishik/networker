@@ -35,22 +35,24 @@ The server handles API routes, authentication, and serves the static frontend in
 
 ### Data Storage Solutions
 
-The application uses a **PostgreSQL** database with **Drizzle ORM**:
+The application uses **Replit's built-in PostgreSQL** database with **Drizzle ORM**:
 
-- **Database**: PostgreSQL (configured for Neon Database hosting)
+- **Database**: Replit PostgreSQL (transitioned from Supabase for reliability)
 - **ORM**: Drizzle ORM for type-safe database operations
-- **Migrations**: Drizzle Kit for schema management
+- **Migrations**: Drizzle Kit for schema management (`npm run db:push`)
 - **Schema**: Centralized schema definitions in `shared/schema.ts`
+- **User Isolation**: Strict user-based data separation to prevent data leakage
 
-The storage layer includes an abstraction interface (`IStorage`) with a memory-based implementation for development and testing.
+The storage layer uses a `DatabaseStorage` implementation with proper user isolation for all operations.
 
 ## Key Components
 
 ### Authentication System
 
-- **Method**: Mock Google OAuth implementation (placeholder for real OAuth)
-- **Session Management**: Client-side localStorage for user state persistence
-- **Authorization**: Header-based user identification for API requests
+- **Method**: Replit OAuth integration using OpenID Connect
+- **Session Management**: PostgreSQL-based session storage with connect-pg-simple
+- **Authorization**: JWT-based authentication with refresh token support
+- **User Management**: Automatic user provisioning and profile sync with Replit accounts
 
 ### Contact Management
 
