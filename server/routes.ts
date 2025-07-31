@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertContactSchema, insertInteractionSchema, insertEdgeSchema } from "@shared/schema";
+import { insertContactSchema, insertInteractionSchema, insertEdgeSchema, type Contact } from "@shared/schema";
 import { parseNoteText } from "../client/src/lib/text-parser";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 
@@ -83,7 +83,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parsed = parseNoteText(body);
       
       // Check for duplicates if we have a name
-      let duplicates = [];
+      let duplicates: Contact[] = [];
       if (parsed.englishName || parsed.hebrewName) {
         const searchName = parsed.englishName || parsed.hebrewName || '';
         duplicates = await storage.findContactsByName(userId, searchName);
@@ -104,7 +104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hebrewName: parsed.hebrewName,
         company: parsed.company,
         jobTitle: parsed.jobTitle,
-        howMet: parsed.introducedBy ? `Introduced by ${parsed.introducedBy}` : undefined,
+        howMet: parsed.howMet || (parsed.introducedBy ? `Introduced by ${parsed.introducedBy}` : undefined),
         tags: parsed.tags
       });
 
@@ -163,7 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           hebrewName: parsed.hebrewName,
           company: parsed.company,
           jobTitle: parsed.jobTitle,
-          howMet: parsed.introducedBy ? `Introduced by ${parsed.introducedBy}` : undefined,
+          howMet: parsed.howMet || (parsed.introducedBy ? `Introduced by ${parsed.introducedBy}` : undefined),
           tags: parsed.tags
         });
 

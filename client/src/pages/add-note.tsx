@@ -171,6 +171,22 @@ export default function AddNotePage() {
                   <span className="font-medium text-slate-800">{parsed.introducedBy}</span>
                 </div>
               )}
+              {parsed.howMet && (
+                <div className="flex items-center space-x-2">
+                  <i className="fas fa-map-marker-alt text-primary w-4"></i>
+                  <span className="text-slate-600">How met:</span>
+                  <span className="font-medium text-slate-800">{parsed.howMet}</span>
+                </div>
+              )}
+              {parsed.followUpDate && (
+                <div className="flex items-center space-x-2">
+                  <i className="fas fa-calendar text-primary w-4"></i>
+                  <span className="text-slate-600">Follow-up:</span>
+                  <span className="font-medium text-slate-800">
+                    {new Date(parsed.followUpDate).toLocaleString()}
+                  </span>
+                </div>
+              )}
               {parsed.tags.length > 0 && (
                 <div className="flex items-center space-x-2">
                   <i className="fas fa-tags text-primary w-4"></i>
