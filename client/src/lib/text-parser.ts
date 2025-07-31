@@ -37,7 +37,7 @@ export function parseNoteText(text: string): ParsedNote {
 
   // Find company - enhanced pattern to detect "working at X" or "at X" patterns
   const companyPatterns = [
-    /\bworking\s+at\s+([A-Z][a-zA-Z0-9]*(?:\s+[A-Z][a-zA-Z0-9]*)*)/i,
+    /\bworking\s+at\s+([A-Z][a-zA-Z0-9]*(?:\s+[A-Z][a-zA-Z0-9]*)*)(?:\s+as\s+|\s+in\s+|\s*[,.])/i,
     /\bat\s+([A-Z][a-zA-Z0-9]+)(?:\s+as\s+|\s+in\s+|\s*[,.])/i,
     /\bfrom\s+([A-Z][a-zA-Z0-9]*(?:\s+[A-Z][a-zA-Z0-9]*)*)\b/i,
     /\b([A-Z][a-zA-Z]*(?:Tech|Lab|Labs|Inc|Corp|Ltd|LLC|Ventures|Capital|Fund|Solutions|Systems|Works|Group|Partners|Consulting))\b/i,
