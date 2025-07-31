@@ -43,9 +43,9 @@ export function parseNoteText(text: string): ParsedNote {
   // Find company - enhanced pattern to detect "working at X" or "at X" patterns
   const companyPatterns = [
     // Match "working at <Company>" and stop before "as", "in", punctuation, or end of text
-    /\bworking\s+at\s+([A-Z][a-zA-Z0-9]*(?:\s+[A-Z][a-zA-Z0-9]*)*)(?=\s+as\b|\s+in\b|[.,;]|$)/i,
+    /\bworking\s+at\s+([A-Z][a-zA-Z0-9]*(?:\s+[A-Z][a-zA-Z0-9]*)*?)(?:\s+as\b|\s+in\b|[.,;]|$)/i,
     // Match "at <Company>" (not preceded by 'working') with same stop rules
-    /\bat\s+([A-Z][a-zA-Z0-9]*(?:\s+[A-Z][a-zA-Z0-9]*)*)(?=\s+as\b|\s+in\b|[.,;]|$)/i,
+    /\bat\s+([A-Z][a-zA-Z0-9]*(?:\s+[A-Z][a-zA-Z0-9]*)*?)(?:\s+as\b|\s+in\b|[.,;]|$)/i,
     // Match "from <Company>"
     /\bfrom\s+([A-Z][a-zA-Z0-9]*(?:\s+[A-Z][a-zA-Z0-9]*)*)\b/i,
     // Company keywords like "X Tech", "X Labs", etc.
