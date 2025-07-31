@@ -183,7 +183,7 @@ export default function AddNotePage() {
                   <i className="fas fa-calendar text-primary w-4"></i>
                   <span className="text-slate-600">Follow-up:</span>
                   <span className="font-medium text-slate-800">
-                    {new Date(parsed.followUpDate).toLocaleString()}
+                    {new Date(parsed.followUpDate).toLocaleDateString('en-GB')} {new Date(parsed.followUpDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
                   </span>
                 </div>
               )}
@@ -193,8 +193,8 @@ export default function AddNotePage() {
                   <span className="text-slate-600">Tags:</span>
                   <div className="flex space-x-1">
                     {parsed.tags.map(tag => (
-                      <span key={tag} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                        {tag}
+                      <span key={tag} className="text-slate-600 text-sm">
+                        #{tag}
                       </span>
                     ))}
                   </div>

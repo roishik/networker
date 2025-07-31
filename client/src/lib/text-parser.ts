@@ -63,7 +63,10 @@ export function parseNoteText(text: string): ParsedNote {
   for (const pattern of jobTitlePatterns) {
     const match = text.match(pattern);
     if (match) {
-      result.jobTitle = match[0];
+      // Capitalize the first letter of each word in the job title
+      result.jobTitle = match[0].split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      ).join(' ');
       remainingText = remainingText.replace(match[0], '').trim();
       break;
     }
