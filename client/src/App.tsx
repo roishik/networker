@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import ContactsPage from "@/pages/contacts";
-import AddNotePage from "@/pages/add-note";
+import AddNodePage from "@/pages/add-node";
 import ContactDetailPage from "@/pages/contact-detail";
 import SettingsPage from "@/pages/settings";
 
@@ -50,7 +50,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={ContactsPage} />
-      <Route path="/add-note" component={AddNotePage} />
+      <Route path="/add-node" component={AddNodePage} />
       <Route path="/contact/:id" component={ContactDetailPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route component={() => <div>404 - Page not found</div>} />

@@ -16,16 +16,16 @@ interface ParseResult {
   created?: boolean;
 }
 
-export default function AddNotePage() {
+export default function AddNodePage() {
   const [, setLocation] = useLocation();
-  const [noteText, setNoteText] = useState("");
+  const [nodeText, setNodeText] = useState("");
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [aiExtractedData, setAiExtractedData] = useState<any | null>(null);
   const { toast } = useToast();
 
   const saveMutation = useMutation({
     mutationFn: async (body: string) => {
-      const response = await apiRequest('POST', '/api/notes', { body });
+      const response = await apiRequest('POST', '/api/nodes', { body });
       return await response.json();
     },
     onSuccess: (result) => {
@@ -50,11 +50,11 @@ export default function AddNotePage() {
 
   const confirmMutation = useMutation({
     mutationFn: async ({ action, contactId }: { action: string; contactId?: string }) => {
-      const response = await apiRequest('POST', '/api/notes/confirm', {
+      const response = await apiRequest('POST', '/api/nodes/confirm', {
         action,
         contactId,
         parsed: parseResult?.parsed,
-        body: noteText
+        body: nodeText
       });
       return await response.json();
     },
@@ -69,7 +69,7 @@ export default function AddNotePage() {
 
   const aiExtractMutation = useMutation({
     mutationFn: async (text: string) => {
-      const response = await apiRequest('POST', '/api/notes/extract-ai', { text });
+      const response = await apiRequest('POST', '/api/nodes/extract-ai', { text });
       return await response.json();
     },
     onSuccess: (result) => {
@@ -89,23 +89,23 @@ export default function AddNotePage() {
   });
 
   const handleSave = () => {
-    if (!noteText.trim()) return;
+    if (!nodeText.trim()) return;
     
     // If we have AI extracted data, use it directly for contact creation
     if (aiExtractedData) {
       handleAiDataSave();
     } else {
-      saveMutation.mutate(noteText);
+      saveMutation.mutate(nodeText);
     }
   };
 
   const handleAiDataSave = async () => {
     try {
       // Create contact directly with AI extracted data
-      const response = await apiRequest('POST', '/api/notes/confirm', {
+      const response = await apiRequest('POST', '/api/nodes/confirm', {
         action: 'create',
         parsed: aiExtractedData,
-        body: noteText
+        body: nodeText
       });
       const result = await response.json();
 
@@ -133,7 +133,7 @@ export default function AddNotePage() {
   };
 
   // Real-time parsing preview
-  const parsed = parseNoteText(noteText);
+  const parsed = parseNoteText(nodeText);
   const hasDetections = parsed.englishName || parsed.hebrewName || parsed.company || parsed.jobTitle || parsed.introducedBy;
 
   return (
@@ -145,10 +145,10 @@ export default function AddNotePage() {
         >
           <i className="fas fa-arrow-left"></i>
         </button>
-        <h1 className="font-semibold text-slate-800">Add a Note</h1>
+        <h1 className="font-semibold text-slate-800">Add a Node</h1>
         <button 
           onClick={handleSave}
-          disabled={!noteText.trim() || saveMutation.isPending}
+          disabled={!nodeText.trim() || saveMutation.isPending}
           className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
         >
           {saveMutation.isPending ? 'Saving...' : aiExtractedData ? 'Save AI Data' : 'Save'}
@@ -158,23 +158,23 @@ export default function AddNotePage() {
       <div className="flex-1 p-4">
         <div className="h-64">
           <textarea 
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Type your note here... e.g., 'Met Dana from StarkTech, VP R&D, intro'd by Gil. Follow up on pilot discussion next week.'"
+            value={nodeText}
+            onChange={(e) => setNodeText(e.target.value)}
+            placeholder="Type your node here... e.g., 'Met Dana from StarkTech, VP R&D, intro'd by Gil. Follow up on pilot discussion next week.'"
             className="w-full h-full p-4 border border-slate-300 rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-primary text-slate-800 placeholder-slate-400"
             autoFocus
           />
         </div>
 
         {/* Parsing Preview */}
-        {noteText.trim() && (
+        {nodeText.trim() && (
           <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-medium text-slate-800">Smart Detection:</h3>
               <div className="flex space-x-2">
                 {!aiExtractedData && (
                   <button
-                    onClick={() => aiExtractMutation.mutate(noteText)}
+                    onClick={() => aiExtractMutation.mutate(nodeText)}
                     disabled={aiExtractMutation.isPending}
                     className="flex items-center space-x-2 text-sm px-3 py-1.5 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
                   >

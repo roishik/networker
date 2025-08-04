@@ -76,14 +76,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Smart note parsing and contact creation
-  app.post("/api/notes", isAuthenticated, async (req: any, res) => {
+  // Smart node parsing and contact creation
+  app.post("/api/nodes", isAuthenticated, async (req: any, res) => {
     const userId = req.user.claims.sub;
 
     try {
       const { body } = req.body;
       if (!body || typeof body !== 'string') {
-        return res.status(400).json({ message: "Note body is required" });
+        return res.status(400).json({ message: "Node body is required" });
       }
 
       const parsed = parseNoteText(body);
@@ -139,13 +139,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ contact, created: true });
     } catch (error) {
-      console.error('Note parsing error:', error);
-      res.status(400).json({ message: "Failed to process note" });
+      console.error('Node parsing error:', error);
+      res.status(400).json({ message: "Failed to process node" });
     }
   });
 
   // Confirm contact creation after duplicate check
-  app.post("/api/notes/confirm", isAuthenticated, async (req: any, res) => {
+  app.post("/api/nodes/confirm", isAuthenticated, async (req: any, res) => {
     const userId = req.user.claims.sub;
 
     try {
@@ -190,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI extraction endpoint
-  app.post("/api/notes/extract-ai", isAuthenticated, async (req: any, res) => {
+  app.post("/api/nodes/extract-ai", isAuthenticated, async (req: any, res) => {
     try {
       const { text } = req.body;
       

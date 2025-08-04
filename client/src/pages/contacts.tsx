@@ -24,8 +24,8 @@ export default function ContactsPage() {
     setLocation(`/contact/${contactId}`);
   };
 
-  const handleAddNote = () => {
-    setLocation('/add-note');
+  const handleAddNode = () => {
+    setLocation('/add-node');
   };
 
   const handleSettings = () => {
@@ -78,7 +78,7 @@ export default function ContactsPage() {
             <h3 className="font-medium text-slate-800 mb-2">No contacts yet</h3>
             <p className="text-slate-600 mb-6">Start building your network by adding your first contact</p>
             <button 
-              onClick={handleAddNote}
+              onClick={handleAddNode}
               className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Add First Contact
@@ -112,7 +112,7 @@ export default function ContactsPage() {
       {/* Floating Action Button */}
       <div className="absolute bottom-6 right-6">
         <button 
-          onClick={handleAddNote}
+          onClick={handleAddNode}
           className="w-14 h-14 bg-primary hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
         >
           <i className="fas fa-plus text-xl"></i>
