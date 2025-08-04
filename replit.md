@@ -62,7 +62,10 @@ The storage layer uses a `DatabaseStorage` implementation with proper user isola
 
 ### Text Parsing Engine
 
-- **Natural Language Processing**: Automatic extraction of contact details from free-text notes
+- **Natural Language Processing**: Automatic extraction of contact details from free-text notes using enhanced regex patterns
+- **AI-Powered Extraction**: ChatGPT 4o mini integration for intelligent field extraction when auto-parsing needs improvement
+- **Dynamic Field Creation**: AI can extract additional fields like family information, follow-up dates, and contextual tags
+- **Dual Parsing Options**: Users can switch between auto-parse and AI extraction for optimal results
 - **Duplicate Detection**: Identifies potential duplicate contacts during creation
 - **Smart Updates**: Can either create new contacts or update existing ones based on parsed information
 

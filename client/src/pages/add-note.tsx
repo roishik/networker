@@ -25,10 +25,8 @@ export default function AddNotePage() {
 
   const saveMutation = useMutation({
     mutationFn: async (body: string) => {
-      return await apiRequest('/api/notes', {
-        method: 'POST',
-        body: JSON.stringify({ body })
-      });
+      const response = await apiRequest('POST', '/api/notes', { body });
+      return await response.json();
     },
     onSuccess: (result) => {
       if (result.requiresConfirmation) {
@@ -52,15 +50,13 @@ export default function AddNotePage() {
 
   const confirmMutation = useMutation({
     mutationFn: async ({ action, contactId }: { action: string; contactId?: string }) => {
-      return await apiRequest('/api/notes/confirm', {
-        method: 'POST',
-        body: JSON.stringify({
-          action,
-          contactId,
-          parsed: parseResult?.parsed,
-          body: noteText
-        })
+      const response = await apiRequest('POST', '/api/notes/confirm', {
+        action,
+        contactId,
+        parsed: parseResult?.parsed,
+        body: noteText
       });
+      return await response.json();
     },
     onSuccess: (result) => {
       toast({
@@ -73,10 +69,8 @@ export default function AddNotePage() {
 
   const aiExtractMutation = useMutation({
     mutationFn: async (text: string) => {
-      return await apiRequest('/api/notes/extract-ai', {
-        method: 'POST',
-        body: JSON.stringify({ text })
-      });
+      const response = await apiRequest('POST', '/api/notes/extract-ai', { text });
+      return await response.json();
     },
     onSuccess: (result) => {
       setAiExtractedData(result);
@@ -108,14 +102,12 @@ export default function AddNotePage() {
   const handleAiDataSave = async () => {
     try {
       // Create contact directly with AI extracted data
-      const result = await apiRequest('/api/notes/confirm', {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'create',
-          parsed: aiExtractedData,
-          body: noteText
-        })
+      const response = await apiRequest('POST', '/api/notes/confirm', {
+        action: 'create',
+        parsed: aiExtractedData,
+        body: noteText
       });
+      const result = await response.json();
 
       toast({
         title: "Success",
