@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
-import { auth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { parseNoteText } from "@/lib/text-parser";
 import { useToast } from "@/hooks/use-toast";
 import DuplicateModal from "@/components/duplicate-modal";
 import type { Contact } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ParseResult {
   duplicates?: Contact[];
@@ -19,21 +20,15 @@ export default function AddNotePage() {
   const [, setLocation] = useLocation();
   const [noteText, setNoteText] = useState("");
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
+  const [aiExtractedData, setAiExtractedData] = useState<any | null>(null);
   const { toast } = useToast();
 
   const saveMutation = useMutation({
     mutationFn: async (body: string) => {
-      const response = await fetch('/api/notes', {
+      return await apiRequest('/api/notes', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...auth.getAuthHeaders()
-        },
         body: JSON.stringify({ body })
       });
-      
-      if (!response.ok) throw new Error('Failed to save note');
-      return response.json() as Promise<ParseResult>;
     },
     onSuccess: (result) => {
       if (result.requiresConfirmation) {
@@ -57,12 +52,8 @@ export default function AddNotePage() {
 
   const confirmMutation = useMutation({
     mutationFn: async ({ action, contactId }: { action: string; contactId?: string }) => {
-      const response = await fetch('/api/notes/confirm', {
+      return await apiRequest('/api/notes/confirm', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...auth.getAuthHeaders()
-        },
         body: JSON.stringify({
           action,
           contactId,
@@ -70,9 +61,6 @@ export default function AddNotePage() {
           body: noteText
         })
       });
-      
-      if (!response.ok) throw new Error('Failed to confirm');
-      return response.json();
     },
     onSuccess: (result) => {
       toast({
@@ -83,9 +71,64 @@ export default function AddNotePage() {
     }
   });
 
+  const aiExtractMutation = useMutation({
+    mutationFn: async (text: string) => {
+      return await apiRequest('/api/notes/extract-ai', {
+        method: 'POST',
+        body: JSON.stringify({ text })
+      });
+    },
+    onSuccess: (result) => {
+      setAiExtractedData(result);
+      toast({
+        title: "AI Extraction Complete",
+        description: "Fields extracted successfully!"
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "AI extraction failed. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleSave = () => {
     if (!noteText.trim()) return;
-    saveMutation.mutate(noteText);
+    
+    // If we have AI extracted data, use it directly for contact creation
+    if (aiExtractedData) {
+      handleAiDataSave();
+    } else {
+      saveMutation.mutate(noteText);
+    }
+  };
+
+  const handleAiDataSave = async () => {
+    try {
+      // Create contact directly with AI extracted data
+      const result = await apiRequest('/api/notes/confirm', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'create',
+          parsed: aiExtractedData,
+          body: noteText
+        })
+      });
+
+      toast({
+        title: "Success",
+        description: "Contact created with AI data!"
+      });
+      setLocation('/');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save contact with AI data",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleBack = () => {
@@ -110,13 +153,13 @@ export default function AddNotePage() {
         >
           <i className="fas fa-arrow-left"></i>
         </button>
-        <h1 className="font-semibold text-slate-800">Add Note</h1>
+        <h1 className="font-semibold text-slate-800">Add a Note</h1>
         <button 
           onClick={handleSave}
           disabled={!noteText.trim() || saveMutation.isPending}
           className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
         >
-          {saveMutation.isPending ? 'Saving...' : 'Save'}
+          {saveMutation.isPending ? 'Saving...' : aiExtractedData ? 'Save AI Data' : 'Save'}
         </button>
       </header>
 
@@ -132,10 +175,79 @@ export default function AddNotePage() {
         </div>
 
         {/* Parsing Preview */}
-        {noteText.trim() && hasDetections && (
+        {noteText.trim() && (
           <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <h3 className="font-medium text-slate-800 mb-2">Smart Detection:</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-medium text-slate-800">Smart Detection:</h3>
+              <div className="flex space-x-2">
+                {!aiExtractedData && (
+                  <button
+                    onClick={() => aiExtractMutation.mutate(noteText)}
+                    disabled={aiExtractMutation.isPending}
+                    className="flex items-center space-x-2 text-sm px-3 py-1.5 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    <i className="fas fa-robot text-purple-600"></i>
+                    <span>{aiExtractMutation.isPending ? 'Extracting...' : 'Extract with AI'}</span>
+                  </button>
+                )}
+                {aiExtractedData && (
+                  <button
+                    onClick={() => setAiExtractedData(null)}
+                    className="flex items-center space-x-2 text-sm px-3 py-1.5 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    <i className="fas fa-undo text-slate-600"></i>
+                    <span>Use Auto-Parse</span>
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="space-y-2 text-sm">
+              {aiExtractedData ? (
+                // Show AI-extracted data
+                <>
+                  {Object.entries(aiExtractedData).map(([key, value]) => {
+                    if (key === 'tags' && Array.isArray(value)) {
+                      return (
+                        <div key={key} className="flex items-center space-x-2">
+                          <i className="fas fa-tags text-primary w-4"></i>
+                          <span className="text-slate-600">Tags:</span>
+                          <div className="flex space-x-1">
+                            {value.map((tag: string) => (
+                              <span key={tag} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (value && typeof value === 'string') {
+                      const icons: Record<string, string> = {
+                        englishName: 'fa-user',
+                        hebrewName: 'fa-user',
+                        company: 'fa-building',
+                        jobTitle: 'fa-briefcase',
+                        howMet: 'fa-map-marker-alt',
+                        followUpDate: 'fa-calendar',
+                        family: 'fa-users',
+                        notes: 'fa-sticky-note'
+                      };
+                      return (
+                        <div key={key} className="flex items-center space-x-2">
+                          <i className={`fas ${icons[key] || 'fa-info-circle'} text-primary w-4`}></i>
+                          <span className="text-slate-600">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                          <span className="font-medium text-slate-800">{
+                            key === 'followUpDate' ? new Date(value).toLocaleString() : value
+                          }</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+                </>
+              ) : hasDetections ? (
+                // Show regex-parsed data
+                <>
               {parsed.englishName && (
                 <div className="flex items-center space-x-2">
                   <i className="fas fa-user text-primary w-4"></i>
@@ -198,6 +310,15 @@ export default function AddNotePage() {
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+              </>
+              ) : (
+                // No regex detections found
+                <div className="text-center py-4">
+                  <i className="fas fa-info-circle text-slate-400 text-lg mb-2"></i>
+                  <p className="text-slate-600 text-sm">No automatic detections found</p>
+                  <p className="text-slate-500 text-xs">Try using AI extraction for better results</p>
                 </div>
               )}
             </div>

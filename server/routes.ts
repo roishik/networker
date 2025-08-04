@@ -4,6 +4,12 @@ import { storage } from "./storage";
 import { insertContactSchema, insertInteractionSchema, insertEdgeSchema, type Contact } from "@shared/schema";
 import { parseNoteText } from "../client/src/lib/text-parser";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import OpenAI from "openai";
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -180,6 +186,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(400).json({ message: "Failed to confirm contact" });
+    }
+  });
+
+  // AI extraction endpoint
+  app.post("/api/notes/extract-ai", isAuthenticated, async (req: any, res) => {
+    try {
+      const { text } = req.body;
+      
+      if (!text || typeof text !== 'string') {
+        return res.status(400).json({ message: "Text is required" });
+      }
+
+      // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert at extracting contact information from networking notes. Extract all relevant information from the text and return it as JSON with these fields:
+            - englishName: Person's name in English
+            - hebrewName: Person's name in Hebrew (if mentioned)
+            - company: Company name
+            - jobTitle: Job title or position
+            - howMet: Where/how they met (event, introduction, etc.)
+            - introducedBy: Name of person who introduced them
+            - followUpDate: Any follow-up dates mentioned (ISO format)
+            - family: Family information mentioned (spouse, children, etc.)
+            - notes: Additional notes or observations
+            - tags: Array of relevant tags based on context (max 3)
+            
+            Only include fields that have clear values in the text. Return empty strings for missing fields, except tags which should be an array.`
+          },
+          {
+            role: "user",
+            content: text
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1
+      });
+
+      const extractedData = JSON.parse(response.choices[0].message.content || '{}');
+      
+      // Clean up empty fields
+      const cleanedData = Object.fromEntries(
+        Object.entries(extractedData).filter(([_, value]) => {
+          if (Array.isArray(value)) return value.length > 0;
+          return value && value !== '';
+        })
+      );
+
+      res.json(cleanedData);
+    } catch (error) {
+      console.error('AI extraction error:', error);
+      res.status(500).json({ message: "AI extraction failed" });
     }
   });
 
