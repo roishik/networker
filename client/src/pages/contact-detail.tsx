@@ -13,6 +13,8 @@ export default function ContactDetailPage() {
   const contactId = params?.id;
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Contact>>({});
+  const [showAddInteraction, setShowAddInteraction] = useState(false);
+  const [interactionText, setInteractionText] = useState('');
   const { toast } = useToast();
 
   const { data: contact, isLoading } = useQuery({
@@ -81,6 +83,8 @@ export default function ContactDetailPage() {
         title: "Success",
         description: "Interaction added successfully"
       });
+      setInteractionText('');
+      setShowAddInteraction(false);
     }
   });
 
@@ -104,10 +108,14 @@ export default function ContactDetailPage() {
   };
 
   const handleAddInteraction = () => {
-    const body = prompt("Add interaction note:");
-    if (body?.trim()) {
-      addInteractionMutation.mutate(body);
+    if (interactionText.trim()) {
+      addInteractionMutation.mutate(interactionText);
     }
+  };
+
+  const handleCancelInteraction = () => {
+    setInteractionText('');
+    setShowAddInteraction(false);
   };
 
   const getInitials = (contact: Contact) => {
@@ -313,15 +321,43 @@ export default function ContactDetailPage() {
             ))}
           </div>
 
-          {/* Add Interaction Button */}
-          <button 
-            onClick={handleAddInteraction}
-            disabled={addInteractionMutation.isPending}
-            className="w-full mt-4 py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
-          >
-            <i className="fas fa-plus mr-2"></i>
-            {addInteractionMutation.isPending ? 'Adding...' : 'Add Interaction'}
-          </button>
+          {/* Add Interaction Field */}
+          {showAddInteraction ? (
+            <div className="mt-4 space-y-3">
+              <textarea
+                value={interactionText}
+                onChange={(e) => setInteractionText(e.target.value)}
+                placeholder="Describe your interaction..."
+                className="w-full p-3 border border-slate-300 rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-primary"
+                rows={3}
+                autoFocus
+              />
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleAddInteraction}
+                  disabled={addInteractionMutation.isPending || !interactionText.trim()}
+                  className="flex-1 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {addInteractionMutation.isPending ? 'Saving...' : 'Save Interaction'}
+                </button>
+                <button
+                  onClick={handleCancelInteraction}
+                  disabled={addInteractionMutation.isPending}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setShowAddInteraction(true)}
+              className="w-full mt-4 py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-primary hover:text-primary transition-colors"
+            >
+              <i className="fas fa-plus mr-2"></i>
+              Add Interaction
+            </button>
+          )}
         </div>
       </div>
     </div>
