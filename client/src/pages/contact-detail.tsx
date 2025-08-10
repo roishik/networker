@@ -15,6 +15,7 @@ export default function ContactDetailPage() {
   const [formData, setFormData] = useState<Partial<Contact>>({});
   const [showAddInteraction, setShowAddInteraction] = useState(false);
   const [interactionText, setInteractionText] = useState('');
+  const [showChangelogs, setShowChangelogs] = useState(false);
   const { toast } = useToast();
 
   const { data: contact, isLoading } = useQuery({
@@ -39,6 +40,18 @@ export default function ContactDetailPage() {
       return response.json() as Promise<Interaction[]>;
     },
     enabled: !!contactId
+  });
+
+  const { data: changelogs = [], refetch: refetchChangelogs } = useQuery({
+    queryKey: ['/api/contacts', contactId, 'changelogs'],
+    queryFn: async () => {
+      const response = await fetch(`/api/contacts/${contactId}/changelogs`, {
+        headers: auth.getAuthHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch changelogs');
+      return response.json() as Promise<any[]>;
+    },
+    enabled: false // Only fetch when explicitly requested
   });
 
   const updateMutation = useMutation({
@@ -88,6 +101,41 @@ export default function ContactDetailPage() {
     }
   });
 
+  const analyzeInteractionMutation = useMutation({
+    mutationFn: async (body: string) => {
+      const response = await fetch(`/api/contacts/${contactId}/interactions/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeaders()
+        },
+        body: JSON.stringify({ body })
+      });
+      if (!response.ok) throw new Error('Failed to analyze interaction');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contacts', contactId, 'interactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contacts', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contacts', contactId, 'changelogs'] });
+      
+      const changesCount = Object.keys(data.changes || {}).length;
+      if (changesCount > 0) {
+        toast({
+          title: "AI Analysis Complete",
+          description: `Updated ${changesCount} field${changesCount > 1 ? 's' : ''} based on the interaction`
+        });
+      } else {
+        toast({
+          title: "Interaction Saved",
+          description: "No new information to update from this interaction"
+        });
+      }
+      setInteractionText('');
+      setShowAddInteraction(false);
+    }
+  });
+
   const handleBack = () => {
     setLocation('/');
   };
@@ -110,6 +158,12 @@ export default function ContactDetailPage() {
   const handleAddInteraction = () => {
     if (interactionText.trim()) {
       addInteractionMutation.mutate(interactionText);
+    }
+  };
+
+  const handleAnalyzeInteraction = () => {
+    if (interactionText.trim()) {
+      analyzeInteractionMutation.mutate(interactionText);
     }
   };
 
@@ -335,14 +389,22 @@ export default function ContactDetailPage() {
               <div className="flex space-x-2">
                 <button
                   onClick={handleAddInteraction}
-                  disabled={addInteractionMutation.isPending || !interactionText.trim()}
+                  disabled={addInteractionMutation.isPending || analyzeInteractionMutation.isPending || !interactionText.trim()}
+                  className="flex-1 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50"
+                >
+                  {addInteractionMutation.isPending ? 'Saving...' : 'Add Interaction'}
+                </button>
+                <button
+                  onClick={handleAnalyzeInteraction}
+                  disabled={addInteractionMutation.isPending || analyzeInteractionMutation.isPending || !interactionText.trim()}
                   className="flex-1 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {addInteractionMutation.isPending ? 'Saving...' : 'Save Interaction'}
+                  {analyzeInteractionMutation.isPending ? 'Analyzing...' : 
+                   <><i className="fas fa-magic mr-2"></i>Analyze with AI</>}
                 </button>
                 <button
                   onClick={handleCancelInteraction}
-                  disabled={addInteractionMutation.isPending}
+                  disabled={addInteractionMutation.isPending || analyzeInteractionMutation.isPending}
                   className="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
                 >
                   Cancel
@@ -357,6 +419,56 @@ export default function ContactDetailPage() {
               <i className="fas fa-plus mr-2"></i>
               Add Interaction
             </button>
+          )}
+
+          {/* Show/Hide Changelogs Button */}
+          <button
+            onClick={() => {
+              if (!showChangelogs) {
+                refetchChangelogs();
+              }
+              setShowChangelogs(!showChangelogs);
+            }}
+            className="w-full mt-4 py-2 text-sm text-slate-600 hover:text-primary transition-colors"
+          >
+            <i className={`fas fa-chevron-${showChangelogs ? 'up' : 'down'} mr-2`}></i>
+            {showChangelogs ? 'Hide' : 'Show'} AI Update Logs
+          </button>
+
+          {/* Changelogs Display */}
+          {showChangelogs && changelogs.length > 0 && (
+            <div className="mt-4 space-y-3">
+              <h4 className="font-medium text-slate-700">AI Update History</h4>
+              {changelogs.map((log: any) => {
+                const changes = JSON.parse(log.changes);
+                return (
+                  <div key={log.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-medium text-slate-700">AI Analysis</span>
+                      <span className="text-xs text-slate-500">
+                        {new Date(log.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="mb-2 text-slate-600 italic">
+                      "{log.interactionText}"
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-xs font-medium text-slate-500">Updates:</span>
+                      {Object.entries(changes).map(([field, value]) => (
+                        <div key={field} className="flex items-start">
+                          <span className="text-xs font-medium text-slate-600 mr-2">
+                            {field}:
+                          </span>
+                          <span className="text-xs text-slate-700">
+                            {Array.isArray(value) ? value.join(', ') : String(value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

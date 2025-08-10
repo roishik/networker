@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertContactSchema, insertInteractionSchema, insertEdgeSchema, type Contact } from "@shared/schema";
+import { insertContactSchema, insertInteractionSchema, insertEdgeSchema, insertChangelogSchema, type Contact } from "@shared/schema";
 import { parseNoteText } from "../client/src/lib/text-parser";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import OpenAI from "openai";
@@ -278,6 +278,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(400).json({ message: "Invalid interaction data" });
     }
+  });
+
+  // AI Analysis with interaction
+  app.post("/api/contacts/:id/interactions/analyze", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
+
+    // Verify contact belongs to user
+    const contact = await storage.getContact(req.params.id, userId);
+    if (!contact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+
+    try {
+      const { body } = req.body;
+      
+      if (!body || typeof body !== 'string') {
+        return res.status(400).json({ message: "Interaction text is required" });
+      }
+
+      // First, save the interaction
+      const interactionData = insertInteractionSchema.parse({
+        body,
+        contactId: req.params.id
+      });
+      
+      const interaction = await storage.createInteraction(interactionData);
+
+      // Use GPT-4o mini to analyze and extract updates
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert at extracting and updating contact information from interaction notes. 
+            Given the current contact information and a new interaction, identify what should be updated or added.
+            
+            Current contact info:
+            - English Name: ${contact.englishName || 'Not set'}
+            - Hebrew Name: ${contact.hebrewName || 'Not set'}
+            - Company: ${contact.company || 'Not set'}
+            - Job Title: ${contact.jobTitle || 'Not set'}
+            - How Met: ${contact.howMet || 'Not set'}
+            - Tags: ${(contact.tags || []).join(', ') || 'None'}
+            
+            Extract any NEW or UPDATED information from the interaction text. Return JSON with only the fields that should be changed or added:
+            - englishName: Update if a more complete name is mentioned
+            - hebrewName: Add/update if Hebrew name is mentioned
+            - company: Update if a new company is mentioned
+            - jobTitle: Update if a new role/title is mentioned
+            - howMet: Update if this interaction provides more context
+            - tags: Array of new tags to ADD (don't repeat existing ones)
+            - family: Family information if mentioned
+            - followUpDate: Next meeting/follow-up date if mentioned (ISO format)
+            - notes: Any important notes or observations
+            
+            Only include fields that have NEW information. Return empty object {} if nothing needs updating.`
+          },
+          {
+            role: "user",
+            content: body
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1
+      });
+
+      const updates = JSON.parse(response.choices[0].message.content || '{}');
+      
+      let updatedContact = contact;
+      let changelog = null;
+
+      // If there are updates, apply them
+      if (Object.keys(updates).length > 0) {
+        // Handle tags specially - merge with existing
+        if (updates.tags && Array.isArray(updates.tags)) {
+          const existingTags = contact.tags || [];
+          updates.tags = [...new Set([...existingTags, ...updates.tags])];
+        }
+
+        // Update the contact
+        updatedContact = await storage.updateContact(req.params.id, userId, updates);
+
+        // Create changelog entry
+        const changelogData = insertChangelogSchema.parse({
+          contactId: req.params.id,
+          interactionText: body,
+          changes: JSON.stringify(updates)
+        });
+        
+        changelog = await storage.createChangelog(changelogData);
+      }
+
+      res.json({ 
+        interaction, 
+        updatedContact,
+        changes: updates,
+        changelogId: changelog?.id
+      });
+    } catch (error) {
+      console.error('AI analysis error:', error);
+      res.status(500).json({ message: "AI analysis failed" });
+    }
+  });
+
+  // Get changelogs for a contact
+  app.get("/api/contacts/:id/changelogs", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
+
+    // Verify contact belongs to user
+    const contact = await storage.getContact(req.params.id, userId);
+    if (!contact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+
+    const changelogs = await storage.getChangelogsByContact(req.params.id);
+    res.json(changelogs);
   });
 
   // Edges/relationships routes

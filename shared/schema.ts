@@ -33,6 +33,14 @@ export const edges = pgTable("edges", {
   relationType: relationTypeEnum("relation_type").notNull(),
 });
 
+export const changelogs = pgTable("changelogs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  contactId: uuid("contact_id").references(() => contacts.id).notNull(),
+  interactionText: text("interaction_text").notNull(),
+  changes: text("changes").notNull(), // JSON string of field changes
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Session storage table for Replit Auth
 export const sessions = pgTable(
   "sessions",
@@ -45,7 +53,7 @@ export const sessions = pgTable(
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey(),
-  email: varchar("email").unique(),
+  email: text("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -68,6 +76,11 @@ export const insertEdgeSchema = createInsertSchema(edges).omit({
   id: true,
 });
 
+export const insertChangelogSchema = createInsertSchema(changelogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,
@@ -79,6 +92,8 @@ export type Interaction = typeof interactions.$inferSelect;
 export type InsertInteraction = z.infer<typeof insertInteractionSchema>;
 export type Edge = typeof edges.$inferSelect;
 export type InsertEdge = z.infer<typeof insertEdgeSchema>;
+export type Changelog = typeof changelogs.$inferSelect;
+export type InsertChangelog = z.infer<typeof insertChangelogSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpsertUser = typeof users.$inferInsert;

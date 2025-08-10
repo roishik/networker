@@ -1,4 +1,4 @@
-import { users, contacts, interactions, edges, type User, type InsertUser, type Contact, type InsertContact, type Interaction, type InsertInteraction, type Edge, type InsertEdge } from "@shared/schema";
+import { users, contacts, interactions, edges, changelogs, type User, type InsertUser, type Contact, type InsertContact, type Interaction, type InsertInteraction, type Edge, type InsertEdge, type Changelog, type InsertChangelog } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, ilike, desc, sql } from "drizzle-orm";
 
@@ -23,6 +23,10 @@ export interface IStorage {
   // Edges
   getEdgesByContact(contactId: string): Promise<Edge[]>;
   createEdge(edge: InsertEdge): Promise<Edge>;
+  
+  // Changelogs
+  getChangelogsByContact(contactId: string): Promise<Changelog[]>;
+  createChangelog(changelog: InsertChangelog): Promise<Changelog>;
   
   // Analytics
   getContactCount(userId: string): Promise<number>;
@@ -151,6 +155,23 @@ export class DatabaseStorage implements IStorage {
       .values(insertEdge)
       .returning();
     return edge;
+  }
+
+  // Changelog operations
+  async getChangelogsByContact(contactId: string): Promise<Changelog[]> {
+    return await db
+      .select()
+      .from(changelogs)
+      .where(eq(changelogs.contactId, contactId))
+      .orderBy(desc(changelogs.createdAt));
+  }
+
+  async createChangelog(insertChangelog: InsertChangelog): Promise<Changelog> {
+    const [changelog] = await db
+      .insert(changelogs)
+      .values(insertChangelog)
+      .returning();
+    return changelog;
   }
 
   // Analytics operations with user isolation
